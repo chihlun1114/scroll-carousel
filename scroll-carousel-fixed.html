@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scroll Carousel</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: sans-serif;
+    }
+
+    .spacer {
+      height: 100vh;
+      background: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+    }
+
+    .carousel-wrapper {
+      width: 100%;
+      height: 800px;
+      overflow: hidden;
+      position: relative;
+      background-color: #000;
+    }
+
+    .carousel-track {
+      display: flex;
+      transition: transform 0.5s ease;
+      height: 100%;
+      will-change: transform;
+    }
+
+    .slide {
+      flex: 0 0 100vw;
+      height: 100%;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      transform: scale(0.95);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* 桌機圖片預設 */
+    .slide:nth-child(1) { background-image: url("https://storage.googleapis.com/web-commonhealth-com-tw/topic/uberdoctorgo/story_A_01.jpg"); }
+    .slide:nth-child(2) { background-image: url("https://storage.googleapis.com/web-commonhealth-com-tw/topic/uberdoctorgo/story_A_02.jpg"); }
+    .slide:nth-child(3) { background-image: url("https://storage.googleapis.com/web-commonhealth-com-tw/topic/uberdoctorgo/story_A_03.jpg"); }
+    .slide:nth-child(4) { background-image: url("https://storage.googleapis.com/web-commonhealth-com-tw/topic/uberdoctorgo/story_A_04.jpg"); }
+
+    @media (max-width: 1024px) {
+      .carousel-wrapper {
+        height: 900px;
+      }
+      .slide:nth-child(1) { background-image: url("https://storage.googleapis.com/web-commonhealth-com-tw/topic/uberdoctorgo/story_B_01.jpg"); }
+      .slide:nth-child(2) { background-image: url("https://storage.googleapis.com/web-commonhealth-com-tw/topic/uberdoctorgo/story_B_02.jpg"); }
+      .slide:nth-child(3) { background-image: url("https://storage.googleapis.com/web-commonhealth-com-tw/topic/uberdoctorgo/story_B_03.jpg"); }
+      .slide:nth-child(4) { background-image: url("https://storage.googleapis.com/web-commonhealth-com-tw/topic/uberdoctorgo/story_B_04.jpg"); }
+    }
+
+    .hint {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: fadeInOut 2.5s infinite;
+      z-index: 10;
+      transition: opacity 0.5s ease;
+    }
+
+    .hint svg {
+      width: 24px;
+      height: 24px;
+      fill: white;
+    }
+
+    @keyframes fadeInOut {
+      0%, 100% { opacity: 0; }
+      30%, 70% { opacity: 1; }
+    }
+
+    .pager {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      color: white;
+      font-size: 1rem;
+      z-index: 10;
+    }
+
+    .arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(0,0,0,0.5);
+      border: none;
+      color: white;
+      font-size: 2rem;
+      padding: 10px 15px;
+      cursor: pointer;
+      z-index: 10;
+      display: none;
+    }
+
+    .arrow.left {
+      left: 10px;
+    }
+
+    .arrow.right {
+      right: 10px;
+    }
+
+    @media (min-width: 1025px) {
+      .arrow {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="spacer">Scroll Down ↓</div>
+
+  <section class="carousel-wrapper" id="carousel">
+    <button class="arrow left" onclick="prevSlide()">←</button>
+    <div class="carousel-track" id="track">
+      <div class="slide"></div>
+      <div class="slide"></div>
+      <div class="slide"></div>
+      <div class="slide"></div>
+    </div>
+    <button class="arrow right" onclick="nextSlide()">→</button>
+    <div class="hint" id="hint">
+      <svg viewBox="0 0 24 24"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 0 0 1.41 1.41l4.59-4.59a1 1 0 0 0 0-1.41L10.7 6.7a1 1 0 0 0-1.41.01z"/></svg>
+      滑動瀏覽
+      <svg viewBox="0 0 24 24"><path d="M14.71 6.71a1 1 0 0 1 0 1.41L10.83 12l3.88 3.88a1 1 0 0 1-1.41 1.41l-4.59-4.59a1 1 0 0 1 0-1.41l4.59-4.59a1 1 0 0 1 1.41.01z"/></svg>
+    </div>
+    <div class="pager" id="pager">1 / 4</div>
+  </section>
+
+  <div class="spacer">完畢後繼續往下捲</div>
+
+  <script>
+    const carousel = document.getElementById('carousel');
+    const track = document.getElementById('track');
+    const hint = document.getElementById('hint');
+    const pager = document.getElementById('pager');
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    let currentSlide = 0;
+    let lockScroll = false;
+
+    function updateCarousel() {
+      track.style.transform = `translateX(-${currentSlide * 100}vw)`;
+      pager.textContent = `${currentSlide + 1} / ${totalSlides}`;
+      slides.forEach((s, i) => {
+        s.classList.toggle('active', i === currentSlide);
+      });
+
+      if (currentSlide === totalSlides - 1) {
+        lockScroll = false;
+        hint.style.opacity = '0';
+        setTimeout(() => hint.style.display = 'none', 500);
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateCarousel();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateCarousel();
+      }
+    }
+
+function checkCarouselInView() {
+  const rect = carousel.getBoundingClientRect();
+  lockScroll = rect.top <= 0 && rect.bottom > window.innerHeight;
+}
+
+// 初始化檢查一次
+document.addEventListener('DOMContentLoaded', checkCarouselInView);
+
+// 滾動時再偵測一次
+window.addEventListener('scroll', checkCarouselInView);
+
+    window.addEventListener('wheel', (e) => {
+      if (!lockScroll) return;
+      e.preventDefault();
+      e.deltaY > 0 ? nextSlide() : prevSlide();
+    }, { passive: false });
+
+    let startX = 0;
+    carousel.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+    });
+    carousel.addEventListener('touchend', (e) => {
+      let deltaX = e.changedTouches[0].clientX - startX;
+      if (Math.abs(deltaX) > 50) {
+        deltaX < 0 ? nextSlide() : prevSlide();
+      }
+    });
+
+    // 初始狀態設定
+    updateCarousel();
+  </script>
+</body>
+</html>
